@@ -1,0 +1,17 @@
+{
+  "call_id": "test_billing_001",
+  "caller_name": "Morgan Chen",
+  "caller_phone": "+15550404040",
+  "caller_email": "morgan@example.com",
+  "company": "Example Finance Co",
+  "call_intent": "billing issue",
+  "urgency": "low",
+  "callback_requested": false,
+  "preferred_callback_time": "",
+  "transcript": "I have a question about an invoice and a recent charge.",
+  "summary": "Caller asked about invoice and billing details.",
+  "call_started_at": "2026-06-17T12:00:00Z",
+  "call_duration_seconds": 120,
+  "voice_platform": "synthetic",
+  "call_status": "completed"
+}

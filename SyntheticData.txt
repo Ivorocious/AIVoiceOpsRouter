@@ -1,0 +1,41 @@
+Synthetic test commands for local n8n.
+
+Replace <N8N_TEST_WEBHOOK_URL> locally with the n8n test webhook URL while the workflow is manually executing.
+
+Do not commit real webhook URLs, tunnel URLs, credentials, or production account details.
+
+Sales:
+
+curl.exe -X POST "<N8N_TEST_WEBHOOK_URL>" `
+  -H "Content-Type: application/json" `
+  --data-binary "@test-payloads/sales.json"
+
+Urgent human review:
+
+curl.exe -X POST "<N8N_TEST_WEBHOOK_URL>" `
+  -H "Content-Type: application/json" `
+  --data-binary "@test-payloads/urgent.json"
+
+Support queue:
+
+curl.exe -X POST "<N8N_TEST_WEBHOOK_URL>" `
+  -H "Content-Type: application/json" `
+  --data-binary "@test-payloads/support.json"
+
+Billing queue:
+
+curl.exe -X POST "<N8N_TEST_WEBHOOK_URL>" `
+  -H "Content-Type: application/json" `
+  --data-binary "@test-payloads/billing.json"
+
+Manual review:
+
+curl.exe -X POST "<N8N_TEST_WEBHOOK_URL>" `
+  -H "Content-Type: application/json" `
+  --data-binary "@test-payloads/manual-review.json"
+
+General queue:
+
+curl.exe -X POST "<N8N_TEST_WEBHOOK_URL>" `
+  -H "Content-Type: application/json" `
+  --data-binary "@test-payloads/general.json"

@@ -1,0 +1,17 @@
+{
+  "call_id": "test_general_001",
+  "caller_name": "Casey Brooks",
+  "caller_phone": "+15550505050",
+  "caller_email": "casey@example.com",
+  "company": "Example Local Co",
+  "call_intent": "general question",
+  "urgency": "low",
+  "callback_requested": false,
+  "preferred_callback_time": "",
+  "transcript": "I have a general question about your services.",
+  "summary": "Caller asked for general information.",
+  "call_started_at": "2026-06-17T14:00:00Z",
+  "call_duration_seconds": 75,
+  "voice_platform": "synthetic",
+  "call_status": "completed"
+}

@@ -1,0 +1,17 @@
+{
+  "call_id": "test_support_001",
+  "caller_name": "Taylor Morgan",
+  "caller_phone": "+15550303030",
+  "caller_email": "taylor@example.com",
+  "company": "Example Services",
+  "call_intent": "support issue",
+  "urgency": "low",
+  "callback_requested": true,
+  "preferred_callback_time": "This week",
+  "transcript": "I need help with a technical issue in my account.",
+  "summary": "Caller needs support for an account issue.",
+  "call_started_at": "2026-06-17T11:00:00Z",
+  "call_duration_seconds": 160,
+  "voice_platform": "synthetic",
+  "call_status": "completed"
+}

@@ -1,0 +1,17 @@
+{
+  "call_id": "test_sales_001",
+  "caller_name": "Alex Rivera",
+  "caller_phone": "+15550101010",
+  "caller_email": "alex@example.com",
+  "company": "Example Growth Co",
+  "call_intent": "sales inquiry",
+  "urgency": "medium",
+  "callback_requested": true,
+  "preferred_callback_time": "Tomorrow afternoon",
+  "transcript": "I want pricing for automation services.",
+  "summary": "Caller requested pricing and a demo.",
+  "call_started_at": "2026-06-17T09:00:00Z",
+  "call_duration_seconds": 210,
+  "voice_platform": "synthetic",
+  "call_status": "completed"
+}

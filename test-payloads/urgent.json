@@ -1,0 +1,17 @@
+{
+  "call_id": "test_urgent_001",
+  "caller_name": "Jordan Lee",
+  "caller_phone": "+15550202020",
+  "caller_email": "jordan@example.com",
+  "company": "Example Ops LLC",
+  "call_intent": "support issue",
+  "urgency": "high",
+  "callback_requested": true,
+  "preferred_callback_time": "Immediately",
+  "transcript": "Our booking system is down and we need help immediately.",
+  "summary": "Critical outage affecting operations.",
+  "call_started_at": "2026-06-17T10:00:00Z",
+  "call_duration_seconds": 95,
+  "voice_platform": "synthetic",
+  "call_status": "completed"
+}

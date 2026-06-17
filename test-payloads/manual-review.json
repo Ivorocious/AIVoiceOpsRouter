@@ -1,0 +1,17 @@
+{
+  "call_id": "test_incomplete_001",
+  "caller_name": "",
+  "caller_phone": "",
+  "caller_email": "",
+  "company": "",
+  "call_intent": "",
+  "urgency": "unknown",
+  "callback_requested": false,
+  "preferred_callback_time": "",
+  "transcript": "",
+  "summary": "",
+  "call_started_at": "2026-06-17T13:00:00Z",
+  "call_duration_seconds": 30,
+  "voice_platform": "synthetic",
+  "call_status": "completed"
+}

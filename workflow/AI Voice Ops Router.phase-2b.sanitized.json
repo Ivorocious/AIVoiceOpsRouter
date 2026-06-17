@@ -1,0 +1,36 @@
+{
+  "name": "AI Voice Ops Router",
+  "notes": "Sanitized initial Phase 2B export kept for historical reference. Use AI Voice Ops Router.sanitized.json for the full portfolio workflow artifact.",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "REDACTED_LOCAL_TEST_WEBHOOK_PATH",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "sanitized-node-01",
+      "name": "Webhook",
+      "webhookId": "REDACTED_WEBHOOK_ID"
+    }
+  ],
+  "pinData": {},
+  "connections": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "REDACTED_VERSION_ID",
+  "meta": {
+    "instanceId": "REDACTED_INSTANCE_ID"
+  },
+  "nodeGroups": [],
+  "id": "REDACTED_WORKFLOW_ID",
+  "tags": []
+}

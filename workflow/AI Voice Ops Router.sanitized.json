@@ -1,0 +1,887 @@
+{
+  "name": "AI Voice Ops Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "REDACTED_LOCAL_TEST_WEBHOOK_PATH",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        32,
+        192
+      ],
+      "id": "sanitized-node-01",
+      "name": "Webhook",
+      "webhookId": "REDACTED_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body ?? $json;\n\nfunction cleanString(value) {\n  if (value === undefined || value === null) return \"\";\n  return String(value).trim();\n}\n\nfunction cleanLower(value) {\n  return cleanString(value).toLowerCase();\n}\n\nfunction toBoolean(value) {\n  if (typeof value === \"boolean\") return value;\n  if (typeof value === \"string\") {\n    return [\"true\", \"yes\", \"1\", \"y\"].includes(value.toLowerCase().trim());\n  }\n  return Boolean(value);\n}\n\nfunction toNumber(value) {\n  const numberValue = Number(value);\n  return Number.isFinite(numberValue) ? numberValue : null;\n}\n\nreturn {\n  json: {\n    raw: body,\n    call: {\n      call_id: cleanString(body.call_id),\n      caller_name: cleanString(body.caller_name),\n      caller_phone: cleanString(body.caller_phone),\n      caller_email: cleanLower(body.caller_email),\n      company: cleanString(body.company),\n      call_intent: cleanLower(body.call_intent),\n      urgency: cleanLower(body.urgency),\n      callback_requested: toBoolean(body.callback_requested),\n      preferred_callback_time: cleanString(body.preferred_callback_time),\n      transcript: cleanString(body.transcript),\n      summary: cleanString(body.summary),\n      call_started_at: cleanString(body.call_started_at),\n      call_duration_seconds: toNumber(body.call_duration_seconds),\n      voice_platform: cleanLower(body.voice_platform),\n      call_status: cleanLower(body.call_status)\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        208
+      ],
+      "id": "sanitized-node-02",
+      "name": "Normalize Call Payload"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const call = $json.call;\nconst errors = [];\nconst warnings = [];\n\nfunction hasValue(value) {\n  return value !== undefined && value !== null && String(value).trim() !== \"\";\n}\n\nif (!hasValue(call.call_id)) {\n  errors.push(\"Missing call_id\");\n}\n\nif (\n  !hasValue(call.caller_name) &&\n  !hasValue(call.caller_phone) &&\n  !hasValue(call.caller_email)\n) {\n  errors.push(\"Missing caller identity\");\n}\n\nif (\n  !hasValue(call.call_intent) &&\n  !hasValue(call.summary) &&\n  !hasValue(call.transcript)\n) {\n  errors.push(\"Missing call intent, summary, or transcript\");\n}\n\nif (!hasValue(call.voice_platform)) {\n  errors.push(\"Missing voice_platform\");\n}\n\nif (!hasValue(call.call_status)) {\n  warnings.push(\"Missing call_status\");\n}\n\nif (\n  hasValue(call.caller_email) &&\n  !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(call.caller_email)\n) {\n  warnings.push(\"caller_email format looks invalid\");\n}\n\nif (\n  call.call_duration_seconds !== null &&\n  call.call_duration_seconds < 0\n) {\n  errors.push(\"call_duration_seconds cannot be negative\");\n}\n\nif (\n  hasValue(call.call_started_at) &&\n  Number.isNaN(Date.parse(call.call_started_at))\n) {\n  warnings.push(\"call_started_at is not a valid timestamp\");\n}\n\nconst validation_status = errors.length > 0 ? \"invalid\" : \"valid\";\n\nreturn {\n  json: {\n    ...$json,\n    validation: {\n      status: validation_status,\n      errors,\n      warnings\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        208
+      ],
+      "id": "sanitized-node-03",
+      "name": "Validate Call Payload"
+    },
+    {
+      "parameters": {
+        "jsCode": "const call = $json.call;\nconst validation = $json.validation ?? { status: \"valid\", errors: [], warnings: [] };\n\nconst intentText = [\n  call.call_intent,\n  call.summary,\n  call.transcript\n].filter(Boolean).join(\" \").toLowerCase();\n\nconst urgencyText = [\n  call.urgency,\n  call.summary,\n  call.transcript\n].filter(Boolean).join(\" \").toLowerCase();\n\nfunction includesAny(text, keywords) {\n  return keywords.some((keyword) => text.includes(keyword));\n}\n\nconst keywordGroups = {\n  emergency: [\n    \"emergency\",\n    \"urgent\",\n    \"critical\",\n    \"immediately\",\n    \"asap\",\n    \"system down\",\n    \"is down\",\n    \"outage\",\n    \"cannot operate\",\n    \"can't operate\",\n    \"business stopped\"\n  ],\n  sales: [\n    \"sales\",\n    \"pricing\",\n    \"quote\",\n    \"demo\",\n    \"proposal\",\n    \"buy\",\n    \"purchase\",\n    \"consultation\",\n    \"new service\"\n  ],\n  support: [\n    \"support\",\n    \"help\",\n    \"issue\",\n    \"problem\",\n    \"broken\",\n    \"not working\",\n    \"technical\",\n    \"error\",\n    \"bug\"\n  ],\n  billing: [\n    \"billing\",\n    \"invoice\",\n    \"payment\",\n    \"charge\",\n    \"refund\",\n    \"subscription\",\n    \"receipt\"\n  ],\n  general: [\n    \"general\",\n    \"question\",\n    \"information\",\n    \"follow up\",\n    \"checking in\"\n  ]\n};\n\nlet intent = \"general\";\nlet intent_reason = \"Defaulted to general inquiry.\";\n\nif (includesAny(intentText, keywordGroups.emergency)) {\n  intent = \"emergency\";\n  intent_reason = \"Emergency keywords found in call content.\";\n} else if (includesAny(intentText, keywordGroups.sales)) {\n  intent = \"sales\";\n  intent_reason = \"Sales keywords found in call content.\";\n} else if (includesAny(intentText, keywordGroups.billing)) {\n  intent = \"billing\";\n  intent_reason = \"Billing keywords found in call content.\";\n} else if (includesAny(intentText, keywordGroups.support)) {\n  intent = \"support\";\n  intent_reason = \"Support keywords found in call content.\";\n} else if (includesAny(intentText, keywordGroups.general)) {\n  intent = \"general\";\n  intent_reason = \"General inquiry keywords found in call content.\";\n}\n\nlet urgency = \"low\";\nlet urgency_reason = \"Defaulted to low urgency.\";\n\nif (\n  call.urgency === \"emergency\" ||\n  includesAny(urgencyText, keywordGroups.emergency)\n) {\n  urgency = \"emergency\";\n  urgency_reason = \"Emergency urgency signal found.\";\n} else if (\n  call.urgency === \"high\" ||\n  includesAny(urgencyText, [\"urgent\", \"asap\", \"today\", \"immediately\"])\n) {\n  urgency = \"high\";\n  urgency_reason = \"High urgency signal found.\";\n} else if (\n  call.urgency === \"medium\" ||\n  includesAny(urgencyText, [\"soon\", \"this week\", \"follow up\"])\n) {\n  urgency = \"medium\";\n  urgency_reason = \"Medium urgency signal found.\";\n}\n\nlet route_key = \"general_queue\";\n\nif (validation.status !== \"valid\") {\n  route_key = \"manual_review\";\n} else if (intent === \"emergency\" || urgency === \"emergency\" || urgency === \"high\") {\n  route_key = \"urgent_human_review\";\n} else if (intent === \"sales\") {\n  route_key = \"sales_follow_up\";\n} else if (intent === \"support\") {\n  route_key = \"support_queue\";\n} else if (intent === \"billing\") {\n  route_key = \"billing_queue\";\n}\n\nreturn {\n  json: {\n    ...$json,\n    classification: {\n      intent,\n      urgency,\n      intent_reason,\n      urgency_reason\n    },\n    routing: {\n      route_key\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        208
+      ],
+      "id": "sanitized-node-04",
+      "name": "Classify Intent and Urgency"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.routing.route_key }}",
+                    "rightValue": "urgent_human_review",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "0ab04dc7-f9b2-42d2-9ec8-7e7195707f6d"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "urgent_human_review"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0106ffd4-7aea-4e7f-a254-475d41bec261",
+                    "leftValue": "={{ $json.routing.route_key }}",
+                    "rightValue": "sales_follow_up",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "sales_follow_up"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "bc60894a-5089-4850-872a-43175cb9a9ea",
+                    "leftValue": "={{ $json.routing.route_key }}",
+                    "rightValue": "support_queue",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "support_queue"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "254014aa-590f-49f3-96f5-e968cc3e077f",
+                    "leftValue": "={{ $json.routing.route_key }}",
+                    "rightValue": "billing_queue",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "billing_queue"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3157cfd0-a688-4f2c-bc3a-df46893198f1",
+                    "leftValue": "={{ $json.routing.route_key }}",
+                    "rightValue": "manual_review",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "manual_review"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "013acdea-aff1-4014-8623-30439c21fd99",
+                    "leftValue": "={{ $json.routing.route_key }}",
+                    "rightValue": "general_queue",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "general_queue"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        896,
+        144
+      ],
+      "id": "sanitized-node-05",
+      "name": "Route Call"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "13a9f8ea-9da4-43c1-b164-a093b5ca8712",
+              "name": "route_handler.route_name",
+              "value": "Sales Follow-Up",
+              "type": "string"
+            },
+            {
+              "id": "a66cb7c5-3956-4332-967c-041a118d8d0e",
+              "name": "route_handler.action_type",
+              "value": "placeholder_sales_follow_up",
+              "type": "string"
+            },
+            {
+              "id": "1ca174c5-6255-4c8f-922d-ce32ebeafa8e",
+              "name": "route_handler.owner_queue",
+              "value": "sales",
+              "type": "string"
+            },
+            {
+              "id": "dc63d64d-d4f0-489a-9f97-53df19eaa138",
+              "name": "route_handler.priority",
+              "value": "medium",
+              "type": "string"
+            },
+            {
+              "id": "a887e980-085a-4987-a05f-f298b87ddde4",
+              "name": "route_handler.sla",
+              "value": "same_business_day",
+              "type": "string"
+            },
+            {
+              "id": "af27bc7c-26fe-41d6-aeaa-5f17e8035b0d",
+              "name": "route_handler.notification_required",
+              "value": "false",
+              "type": "string"
+            },
+            {
+              "id": "12453c14-4411-4c0a-8f47-1adaa7de3abf",
+              "name": "route_handler.next_step",
+              "value": "Sales team should review the inquiry and prepare a follow-up.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        -80
+      ],
+      "id": "sanitized-node-06",
+      "name": "Sales Follow-Up Handler"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8b1be2a6-2ad1-4d05-bba2-fb8829cad20c",
+              "name": "route_handler.route_name",
+              "value": "Urgent Human Review",
+              "type": "string"
+            },
+            {
+              "id": "147521da-ffb4-49f4-86bf-9fd5d7ed8629",
+              "name": "route_handler.action_type",
+              "value": "placeholder_human_escalation",
+              "type": "string"
+            },
+            {
+              "id": "a84f3306-9e21-4fbd-8f40-f90c7ed253e6",
+              "name": "route_handler.owner_queue",
+              "value": "urgent_ops",
+              "type": "string"
+            },
+            {
+              "id": "5ee0f84e-fc0e-4b75-9b02-6b4258af0879",
+              "name": "route_handler.priority",
+              "value": "emergency",
+              "type": "string"
+            },
+            {
+              "id": "e9b44492-532e-4232-9686-0f6a805315a9",
+              "name": "route_handler.sla",
+              "value": "immediate_review",
+              "type": "string"
+            },
+            {
+              "id": "03849fcf-c119-4fec-8de5-f415deeb17bb",
+              "name": "route_handler.notification_required",
+              "value": "true",
+              "type": "string"
+            },
+            {
+              "id": "02249d2c-94b8-4275-aee5-36eaeae36c65",
+              "name": "route_handler.next_step",
+              "value": "Human reviewer should inspect the call summary and contact the caller.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        -272
+      ],
+      "id": "sanitized-node-07",
+      "name": "Urgent Human Review Handler"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "13a9f8ea-9da4-43c1-b164-a093b5ca8712",
+              "name": "route_handler.route_name",
+              "value": "Support Queue",
+              "type": "string"
+            },
+            {
+              "id": "a66cb7c5-3956-4332-967c-041a118d8d0e",
+              "name": "route_handler.action_type",
+              "value": "placeholder_support_ticket",
+              "type": "string"
+            },
+            {
+              "id": "1ca174c5-6255-4c8f-922d-ce32ebeafa8e",
+              "name": "route_handler.owner_queue",
+              "value": "support",
+              "type": "string"
+            },
+            {
+              "id": "dc63d64d-d4f0-489a-9f97-53df19eaa138",
+              "name": "route_handler.priority",
+              "value": "normal",
+              "type": "string"
+            },
+            {
+              "id": "a887e980-085a-4987-a05f-f298b87ddde4",
+              "name": "route_handler.sla",
+              "value": "next_business_day",
+              "type": "string"
+            },
+            {
+              "id": "af27bc7c-26fe-41d6-aeaa-5f17e8035b0d",
+              "name": "route_handler.notification_required",
+              "value": "false",
+              "type": "string"
+            },
+            {
+              "id": "12453c14-4411-4c0a-8f47-1adaa7de3abf",
+              "name": "route_handler.next_step",
+              "value": "Support team should review the issue and create a ticket if needed.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        112
+      ],
+      "id": "sanitized-node-08",
+      "name": "Support Queue Handler"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "13a9f8ea-9da4-43c1-b164-a093b5ca8712",
+              "name": "route_handler.route_name",
+              "value": "Billing Queue",
+              "type": "string"
+            },
+            {
+              "id": "a66cb7c5-3956-4332-967c-041a118d8d0e",
+              "name": "route_handler.action_type",
+              "value": "placeholder_billing_review",
+              "type": "string"
+            },
+            {
+              "id": "1ca174c5-6255-4c8f-922d-ce32ebeafa8e",
+              "name": "route_handler.owner_queue",
+              "value": "billing",
+              "type": "string"
+            },
+            {
+              "id": "dc63d64d-d4f0-489a-9f97-53df19eaa138",
+              "name": "route_handler.priority",
+              "value": "normal",
+              "type": "string"
+            },
+            {
+              "id": "a887e980-085a-4987-a05f-f298b87ddde4",
+              "name": "route_handler.sla",
+              "value": "next_business_day",
+              "type": "string"
+            },
+            {
+              "id": "af27bc7c-26fe-41d6-aeaa-5f17e8035b0d",
+              "name": "route_handler.notification_required",
+              "value": "false",
+              "type": "string"
+            },
+            {
+              "id": "12453c14-4411-4c0a-8f47-1adaa7de3abf",
+              "name": "route_handler.next_step",
+              "value": "Billing team should review payment, invoice, or refund details.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        304
+      ],
+      "id": "sanitized-node-09",
+      "name": "Billing Queue Handler"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "13a9f8ea-9da4-43c1-b164-a093b5ca8712",
+              "name": "route_handler.route_name",
+              "value": "Manual Review",
+              "type": "string"
+            },
+            {
+              "id": "a66cb7c5-3956-4332-967c-041a118d8d0e",
+              "name": "route_handler.action_type",
+              "value": "placeholder_manual_review",
+              "type": "string"
+            },
+            {
+              "id": "1ca174c5-6255-4c8f-922d-ce32ebeafa8e",
+              "name": "route_handler.owner_queue",
+              "value": "operations",
+              "type": "string"
+            },
+            {
+              "id": "dc63d64d-d4f0-489a-9f97-53df19eaa138",
+              "name": "route_handler.priority",
+              "value": "review_required",
+              "type": "string"
+            },
+            {
+              "id": "a887e980-085a-4987-a05f-f298b87ddde4",
+              "name": "route_handler.sla",
+              "value": "manual_triage",
+              "type": "string"
+            },
+            {
+              "id": "af27bc7c-26fe-41d6-aeaa-5f17e8035b0d",
+              "name": "route_handler.notification_required",
+              "value": "false",
+              "type": "string"
+            },
+            {
+              "id": "12453c14-4411-4c0a-8f47-1adaa7de3abf",
+              "name": "route_handler.next_step",
+              "value": "Operations should inspect missing or unclear call data.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        496
+      ],
+      "id": "sanitized-node-10",
+      "name": "Manual Review Handler"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "13a9f8ea-9da4-43c1-b164-a093b5ca8712",
+              "name": "route_handler.route_name",
+              "value": "General Queue",
+              "type": "string"
+            },
+            {
+              "id": "a66cb7c5-3956-4332-967c-041a118d8d0e",
+              "name": "route_handler.action_type",
+              "value": "placeholder_general_queue",
+              "type": "string"
+            },
+            {
+              "id": "1ca174c5-6255-4c8f-922d-ce32ebeafa8e",
+              "name": "route_handler.owner_queue",
+              "value": "general_ops",
+              "type": "string"
+            },
+            {
+              "id": "dc63d64d-d4f0-489a-9f97-53df19eaa138",
+              "name": "route_handler.priority",
+              "value": "low",
+              "type": "string"
+            },
+            {
+              "id": "a887e980-085a-4987-a05f-f298b87ddde4",
+              "name": "route_handler.sla",
+              "value": "standard_follow_up",
+              "type": "string"
+            },
+            {
+              "id": "af27bc7c-26fe-41d6-aeaa-5f17e8035b0d",
+              "name": "route_handler.notification_required",
+              "value": "false",
+              "type": "string"
+            },
+            {
+              "id": "12453c14-4411-4c0a-8f47-1adaa7de3abf",
+              "name": "route_handler.next_step",
+              "value": "General team should review and follow up if appropriate.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        688
+      ],
+      "id": "sanitized-node-11",
+      "name": "General Queue Handler"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const call = $json.call;\nconst validation = $json.validation;\nconst classification = $json.classification;\nconst routing = $json.routing;\nconst routeHandler = $json.route_handler;\n\nfunction hasValue(value) {\n  return value !== undefined && value !== null && String(value).trim() !== \"\";\n}\n\nreturn {\n  json: {\n    ...$json,\n    call_log: {\n      event_type: \"ai_voice_call_routed\",\n      workflow_name: \"AI Voice Ops Router\",\n      call_id: call.call_id,\n      voice_platform: call.voice_platform,\n      call_status: call.call_status,\n      caller: {\n        name: call.caller_name,\n        company: call.company,\n        phone_present: hasValue(call.caller_phone),\n        email_present: hasValue(call.caller_email)\n      },\n      classification: {\n        intent: classification.intent,\n        urgency: classification.urgency,\n        intent_reason: classification.intent_reason,\n        urgency_reason: classification.urgency_reason\n      },\n      routing: {\n        route_key: routing.route_key,\n        route_name: routeHandler.route_name,\n        owner_queue: routeHandler.owner_queue,\n        priority: routeHandler.priority,\n        sla: routeHandler.sla,\n        notification_required: routeHandler.notification_required\n      },\n      validation: {\n        status: validation.status,\n        errors: validation.errors,\n        warnings: validation.warnings\n      },\n      call: {\n        started_at: call.call_started_at,\n        duration_seconds: call.call_duration_seconds,\n        callback_requested: call.callback_requested,\n        preferred_callback_time: call.preferred_callback_time\n      },\n      summary: call.summary,\n      processed_at: new Date().toISOString()\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        208
+      ],
+      "id": "sanitized-node-12",
+      "name": "Prepare Call Log"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{\n{\n  success: $json.validation.status === \"valid\",\n  call_id: $json.call.call_id || null,\n  route: $json.routing.route_key,\n  route_name: $json.route_handler.route_name,\n  classification: {\n    intent: $json.classification.intent,\n    urgency: $json.classification.urgency\n  },\n  validation_status: $json.validation.status,\n  errors: $json.validation.errors,\n  warnings: $json.validation.warnings,\n  message: $json.validation.status === \"valid\"\n    ? \"Call received and routed.\"\n    : \"Call payload requires manual review.\"\n}\n}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1712,
+        208
+      ],
+      "id": "sanitized-node-13",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "content": "AI Voice Ops Router\n\nReceives synthetic AI voice call payloads through a local n8n test webhook, validates and normalizes the call data, classifies intent and urgency, routes the call to the correct placeholder queue, prepares a structured call log, and returns a clean JSON response.\n\nBuilt for portfolio demonstration using synthetic data only.",
+        "height": 416
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        -400
+      ],
+      "id": "sanitized-node-14",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Local n8n testing\n\nThis workflow is tested through the n8n test webhook while the workflow is manually executing.\n\nExternal AI voice platforms cannot call localhost directly. Later testing would require synthetic payloads only, a secure temporary tunnel, or a public n8n deployment.\n\nDo not publish webhook URLs or tunnel URLs.",
+        "height": 416
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        96
+      ],
+      "id": "sanitized-node-15",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "Intake and validation\n\nWebhook receives the call result payload.\nNormalize Call Payload trims strings, lowercases selected fields, converts booleans, and converts call duration to a number.\nValidate Call Payload checks required identifiers, caller identity, call content, voice platform, timestamps, email format, and duration.",
+        "height": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        336,
+        -256
+      ],
+      "id": "sanitized-node-16",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "Classification and routing\n\nClassify Intent and Urgency uses keyword-based logic to classify calls as emergency, sales, support, billing, general, or manual review.\nEmergency and high-urgency signals override normal intent routing.\nRoute Call sends each item to the matching placeholder queue.",
+        "height": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        768,
+        -256
+      ],
+      "id": "sanitized-node-17",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "Placeholder route handlers\n\nEach branch represents a future operational destination:\n- urgent human review\n- sales follow-up\n- support queue\n- billing queue\n- manual review\n- general queue\n\nNo real external systems are connected in this portfolio phase.",
+        "height": 384
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        -688
+      ],
+      "id": "sanitized-node-18",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "Logging and response\n\nPrepare Call Log creates a structured event record suitable for later storage in Sheets, Airtable, a database, or an incident log.\nRespond to Webhook returns a compact JSON response with route, classification, validation status, and message.",
+        "height": 304
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        -128
+      ],
+      "id": "sanitized-node-19",
+      "name": "Sticky Note5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Call Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Call Payload": {
+      "main": [
+        [
+          {
+            "node": "Validate Call Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Call Payload": {
+      "main": [
+        [
+          {
+            "node": "Classify Intent and Urgency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Intent and Urgency": {
+      "main": [
+        [
+          {
+            "node": "Route Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Call": {
+      "main": [
+        [
+          {
+            "node": "Urgent Human Review Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sales Follow-Up Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Support Queue Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Billing Queue Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Manual Review Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "General Queue Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Urgent Human Review Handler": {
+      "main": [
+        [
+          {
+            "node": "Prepare Call Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sales Follow-Up Handler": {
+      "main": [
+        [
+          {
+            "node": "Prepare Call Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Support Queue Handler": {
+      "main": [
+        [
+          {
+            "node": "Prepare Call Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Billing Queue Handler": {
+      "main": [
+        [
+          {
+            "node": "Prepare Call Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Review Handler": {
+      "main": [
+        [
+          {
+            "node": "Prepare Call Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "General Queue Handler": {
+      "main": [
+        [
+          {
+            "node": "Prepare Call Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Call Log": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "REDACTED_VERSION_ID",
+  "meta": {
+    "instanceId": "REDACTED_INSTANCE_ID"
+  },
+  "nodeGroups": [],
+  "id": "REDACTED_WORKFLOW_ID",
+  "tags": []
+}
