@@ -160,7 +160,17 @@ AIVoiceOpsRouter/
     general.json
   screenshots/
     README.md
+  docs/
+    MISSION_CONTROL_REPORT.md
+    PHASE_2K_DECISION_RECORD.md
+    SECURITY_AND_PUBLISHING_NOTES.md
 ```
+
+## Additional Documentation
+
+- `docs/MISSION_CONTROL_REPORT.md` summarizes the completed build for review.
+- `docs/PHASE_2K_DECISION_RECORD.md` documents the skipped external voice-platform test and the pending Mission Control decision.
+- `docs/SECURITY_AND_PUBLISHING_NOTES.md` records the privacy and publication safeguards used for the repo.
 
 ## Security And Privacy
 
