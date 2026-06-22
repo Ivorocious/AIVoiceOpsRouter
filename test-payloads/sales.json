@@ -1,7 +1,7 @@
 {
   "call_id": "test_sales_001",
   "caller_name": "Alex Rivera",
-  "caller_phone": "+15550101010",
+  "caller_phone": "<synthetic_phone_placeholder>",
   "caller_email": "alex@example.com",
   "company": "Example Growth Co",
   "call_intent": "sales inquiry",

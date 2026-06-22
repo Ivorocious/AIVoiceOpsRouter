@@ -1,0 +1,34 @@
+{
+  "event": "call_analyzed",
+  "provider": "retell_planned",
+  "source": "phase_2l_1_full_synthetic_payload",
+  "call": {
+    "agent_id": "synthetic_agent_placeholder",
+    "direction": "inbound",
+    "call_status": "completed",
+    "call_started_at": "2026-06-22T11:00:00Z",
+    "call_ended_at": "2026-06-22T11:00:45Z",
+    "caller": {
+      "name": "",
+      "phone": "",
+      "email": "",
+      "company": ""
+    },
+    "transcript": "",
+    "summary": "",
+    "analysis": {
+      "detected_intent": "",
+      "detected_urgency": "",
+      "callback_requested": "",
+      "preferred_callback_time": "",
+      "human_review_required": true,
+      "call_outcome": "incomplete_payload"
+    },
+    "metadata": {
+      "test_mode": true,
+      "contains_real_caller_data": false,
+      "intended_route": "manual_review",
+      "notes": "Intentionally incomplete synthetic Retell-style event for validation testing."
+    }
+  }
+}

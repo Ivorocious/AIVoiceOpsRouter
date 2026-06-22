@@ -1,0 +1,37 @@
+{
+  "event": "call_analyzed",
+  "provider": "retell_planned",
+  "source": "phase_2l_1_lite_synthetic_payload",
+  "call": {
+    "call_id": "synthetic_retell_billing_001",
+    "agent_id": "synthetic_agent_placeholder",
+    "direction": "inbound",
+    "call_status": "completed",
+    "call_started_at": "2026-06-22T09:00:00Z",
+    "call_ended_at": "2026-06-22T09:03:20Z",
+    "call_duration_seconds": 200,
+    "disconnection_reason": "caller_ended",
+    "caller": {
+      "name": "Synthetic Billing Caller",
+      "phone": "<synthetic_phone_placeholder>",
+      "email": "billing.caller@example.test",
+      "company": "Example Finance Co"
+    },
+    "transcript": "I have a question about an invoice and a recent charge. Please have someone from billing follow up tomorrow.",
+    "summary": "Synthetic caller requested billing follow-up about an invoice and recent charge.",
+    "analysis": {
+      "detected_intent": "billing",
+      "detected_urgency": "low",
+      "callback_requested": true,
+      "preferred_callback_time": "tomorrow",
+      "human_review_required": false,
+      "call_outcome": "routed"
+    },
+    "metadata": {
+      "test_mode": true,
+      "contains_real_caller_data": false,
+      "intended_route": "billing_queue",
+      "notes": "Synthetic Retell-style event for adapter planning only."
+    }
+  }
+}

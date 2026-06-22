@@ -1,7 +1,7 @@
 {
   "call_id": "test_urgent_001",
   "caller_name": "Jordan Lee",
-  "caller_phone": "+15550202020",
+  "caller_phone": "<synthetic_phone_placeholder>",
   "caller_email": "jordan@example.com",
   "company": "Example Ops LLC",
   "call_intent": "support issue",

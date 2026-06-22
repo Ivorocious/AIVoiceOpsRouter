@@ -1,0 +1,36 @@
+{
+  "event": "call_analyzed",
+  "provider": "retell_planned",
+  "source": "phase_2l_1_full_synthetic_payload",
+  "call": {
+    "call_id": "synthetic_retell_urgent_support_001",
+    "agent_id": "synthetic_agent_placeholder",
+    "direction": "inbound",
+    "call_status": "completed",
+    "call_started_at": "2026-06-22T10:15:00Z",
+    "call_ended_at": "2026-06-22T10:18:30Z",
+    "disconnection_reason": "caller_ended",
+    "caller": {
+      "name": "Synthetic Support Caller",
+      "phone": "<synthetic_phone_placeholder>",
+      "email": "support.caller@example.test",
+      "company": "Example Operations Co"
+    },
+    "transcript": "Our automation is down and the team cannot operate. We need urgent help immediately.",
+    "summary": "Synthetic caller reported an urgent support outage that stopped operations.",
+    "analysis": {
+      "detected_intent": "support",
+      "detected_urgency": "emergency",
+      "callback_requested": true,
+      "preferred_callback_time": "immediately",
+      "human_review_required": true,
+      "call_outcome": "urgent_review_required"
+    },
+    "metadata": {
+      "test_mode": true,
+      "contains_real_caller_data": false,
+      "intended_route": "urgent_human_review",
+      "notes": "Synthetic Retell-style urgent support event for adapter planning only."
+    }
+  }
+}

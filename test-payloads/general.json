@@ -1,7 +1,7 @@
 {
   "call_id": "test_general_001",
   "caller_name": "Casey Brooks",
-  "caller_phone": "+15550505050",
+  "caller_phone": "<synthetic_phone_placeholder>",
   "caller_email": "casey@example.com",
   "company": "Example Local Co",
   "call_intent": "general question",

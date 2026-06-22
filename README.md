@@ -10,6 +10,44 @@ A business receives calls through an AI voice agent. The voice agent collects ca
 
 In this portfolio version, the AI voice platform is simulated with local synthetic POST requests.
 
+## Voice Platform Readiness
+
+This workflow is designed around common AI voice platform webhook patterns: a voice agent completes a call, extracts caller details, transcript, summary, urgency, and intent, then sends a call-result payload to n8n.
+
+The current portfolio version uses synthetic/local payloads for safe testing. It has not yet been connected to live Vapi, Retell, Bland AI, Synthflow, or other external AI voice platforms.
+
+Live external testing is planned as a future integration step, not a completed feature. Because n8n is locally hosted, external platforms cannot call the local test webhook directly without either a secure temporary tunnel or a public n8n deployment.
+
+Readiness documentation:
+
+- `docs/voice-agent-prompt.md`
+- `docs/voice-webhook-contract.md`
+- `docs/voice-debugging-guide.md`
+- `docs/live-integration-plan.md`
+
+## Retell AI Integration Plan
+
+Retell AI is the planned first live voice-platform test target because its webhook and post-call analysis concepts map well to this project's call-result routing workflow.
+
+The project is not yet connected to Retell AI. Current Retell work is familiarization and payload-readiness only. No live Retell credentials, webhook URL, tunnel URL, production deployment, real phone number, or real caller data is included.
+
+Future live testing will require either a secure temporary tunnel or a public n8n deployment, plus webhook authentication and strict redaction. Only synthetic call data should be used unless explicitly approved otherwise.
+
+Retell planning documentation:
+
+- `docs/retell-familiarization-notes.md`
+- `docs/retell-integration-readiness-checklist.md`
+- `docs/retell-style-payload.md`
+- `docs/retell-payload-adapter-map.md`
+- `docs/retell-adapter-test-notes.md`
+- `docs/phase-2l-live-test-plan.md`
+
+## Retell-Style Adapter Support
+
+The workflow can now process synthetic Retell-style wrapped payloads as well as the original native synthetic payload format. The adapter logic lives in the existing `Normalize Call Payload` node and maps Retell-style event data into the same internal schema used by the rest of the workflow.
+
+This is not a live Retell integration. No real Retell webhook has been received, no Retell credentials are included, and no tunnel or public n8n endpoint has been created. Live Retell testing remains a future Phase 2L-2 step.
+
 ## Architecture
 
 ```text
@@ -67,7 +105,9 @@ The workflow should remain inactive during local test-webhook development unless
 
 ## Test Payloads
 
-The `test-payloads` folder contains six synthetic JSON files:
+The `test-payloads` folder contains native synthetic payloads and Retell-style synthetic payloads.
+
+Native synthetic payloads:
 
 - `sales.json`
 - `urgent.json`
@@ -75,6 +115,12 @@ The `test-payloads` folder contains six synthetic JSON files:
 - `billing.json`
 - `manual-review.json`
 - `general.json`
+
+Retell-style synthetic payloads:
+
+- `retell-style-billing-event.json`
+- `retell-style-urgent-support-event.json`
+- `retell-style-invalid-event.json`
 
 Example local test command:
 
@@ -88,16 +134,19 @@ Replace `<N8N_TEST_WEBHOOK_URL>` locally. Do not commit real webhook URLs.
 
 ## Test Results
 
-All six synthetic route outcomes were tested successfully:
+Native and Retell-style synthetic route outcomes were tested successfully:
 
-| Payload | Expected route |
-| --- | --- |
-| `urgent.json` | `urgent_human_review` |
-| `sales.json` | `sales_follow_up` |
-| `support.json` | `support_queue` |
-| `billing.json` | `billing_queue` |
-| `manual-review.json` | `manual_review` |
-| `general.json` | `general_queue` |
+| Payload | Format | Expected route |
+| --- | --- | --- |
+| `sales.json` | Native synthetic | `sales_follow_up` |
+| `urgent.json` | Native synthetic | `urgent_human_review` |
+| `support.json` | Native synthetic | `support_queue` |
+| `billing.json` | Native synthetic | `billing_queue` |
+| `manual-review.json` | Native synthetic | `manual_review` |
+| `general.json` | Native synthetic | `general_queue` |
+| `retell-style-billing-event.json` | Retell-style synthetic | `billing_queue` |
+| `retell-style-urgent-support-event.json` | Retell-style synthetic | `urgent_human_review` |
+| `retell-style-invalid-event.json` | Retell-style synthetic | `manual_review` |
 
 ## Response Shape
 
@@ -158,19 +207,44 @@ AIVoiceOpsRouter/
     billing.json
     manual-review.json
     general.json
+    retell-style-billing-event.json
+    retell-style-urgent-support-event.json
+    retell-style-invalid-event.json
   screenshots/
     README.md
   docs/
     MISSION_CONTROL_REPORT.md
     PHASE_2K_DECISION_RECORD.md
+    PHASE_2K_LITE_REPORT.md
     SECURITY_AND_PUBLISHING_NOTES.md
+    live-integration-plan.md
+    phase-2l-live-test-plan.md
+    retell-adapter-test-notes.md
+    retell-familiarization-notes.md
+    retell-integration-readiness-checklist.md
+    retell-payload-adapter-map.md
+    retell-style-payload.md
+    voice-agent-prompt.md
+    voice-debugging-guide.md
+    voice-webhook-contract.md
 ```
 
 ## Additional Documentation
 
 - `docs/MISSION_CONTROL_REPORT.md` summarizes the completed build for review.
 - `docs/PHASE_2K_DECISION_RECORD.md` documents the skipped external voice-platform test and the pending Mission Control decision.
+- `docs/PHASE_2K_LITE_REPORT.md` summarizes the voice platform readiness upgrade.
 - `docs/SECURITY_AND_PUBLISHING_NOTES.md` records the privacy and publication safeguards used for the repo.
+- `docs/voice-agent-prompt.md` defines the provider-neutral voice agent behavior.
+- `docs/voice-webhook-contract.md` defines the expected call-result webhook contract.
+- `docs/voice-debugging-guide.md` documents common payload and routing troubleshooting steps.
+- `docs/live-integration-plan.md` explains future tunnel or public deployment options.
+- `docs/retell-familiarization-notes.md` documents Retell concepts to learn before live testing.
+- `docs/retell-integration-readiness-checklist.md` provides pre-live Retell setup and evidence checklists.
+- `docs/retell-style-payload.md` defines a synthetic Retell-inspired payload shape.
+- `docs/retell-payload-adapter-map.md` documents the implemented synthetic Retell-style adapter mapping.
+- `docs/retell-adapter-test-notes.md` records expected normalization, validation, and route outcomes.
+- `docs/phase-2l-live-test-plan.md` lays out the staged Retell live-test path.
 
 ## Security And Privacy
 

@@ -1,7 +1,7 @@
 {
   "call_id": "test_support_001",
   "caller_name": "Taylor Morgan",
-  "caller_phone": "+15550303030",
+  "caller_phone": "<synthetic_phone_placeholder>",
   "caller_email": "taylor@example.com",
   "company": "Example Services",
   "call_intent": "support issue",
